@@ -38,7 +38,7 @@ The whole app runs from **a single portable folder** — copy it to a USB drive,
 
 ```
 ┌───────────────────────────────────────────────┐
-│ Edge 应用窗口（系统自带 msedge --app）          │
+│ 应用窗口（chrome.exe --app，包内 Chromium 优先）  │
 │   功能区标签 + PDF.js 渲染画布（常驻）          │
 └──────────────────┬────────────────────────────┘
                    │  http://127.0.0.1:<随机端口>
@@ -99,7 +99,7 @@ All engines are open source and freely usable offline. Every third-party compone
 ```
 Qpdf/
 ├─ app/                    # Python 后端 + 前端四件套
-│  ├─ main.py             # 入口：起服务 + 拉起 Edge 应用窗口
+│  ├─ main.py             # 入口：起服务 + 拉起应用窗口（包内 Chromium 优先）
 │  ├─ server.py           # 本地静态 HTTP 服务
 │  ├─ ops/                # 功能块（每个操作一个文件，注册进框架）
 │  └─ frontend/           # index.html / viewer.js / toolbar.js / style.css
@@ -108,7 +108,7 @@ Qpdf/
 ├─ local/                 # 私有区：备份脚本 / token（gitignore，永不上传）
 ├─ data/                  # 运行时数据（最近文件 / 设置，gitignore）
 ├─ README.md
-└─ requirements.txt       # 仅 pymupdf（外壳用系统 Edge，无需 pywebview）
+└─ requirements.txt       # 仅 pymupdf（外壳为浏览器 --app 模式，无需 pywebview）
 ```
 
 ---
