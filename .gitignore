@@ -31,3 +31,6 @@ local/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# WorkBuddy 工作区内部数据（记忆/状态，不进代码库）
+.workbuddy/
