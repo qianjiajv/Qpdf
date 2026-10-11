@@ -39,6 +39,14 @@ class StaticHandler(BaseHTTPRequestHandler):
     def do_GET(self):  # noqa: N802
         parsed = urlparse(self.path)
         route = unquote(parsed.path)
+
+        # 动态功能块清单 (规格 §7.1): GET /api/blocks
+        if route == "/api/blocks":
+            from app.ops import get_blocks  # 延迟导入, 避免循环依赖
+            body = json.dumps(get_blocks(), ensure_ascii=False).encode("utf-8")
+            self._send(200, body, "application/json; charset=utf-8")
+            return
+
         root = self.server.routes.get(route)
         if root is None:
             self._send(404, b"not found", "text/plain; charset=utf-8")

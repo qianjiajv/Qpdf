@@ -32,7 +32,7 @@ All of this runs from a **single portable folder** — copy it to a USB drive, p
 
 ```
 ┌───────────────────────────────────────────────┐
-│ pywebview window (system WebView2)            │
+│ Edge app window (msedge --app, system browser)  │
 │   Ribbon tabs + PDF.js canvas (persistent)    │
 └──────────────────┬────────────────────────────┘
                    │  http://127.0.0.1:<random port>
@@ -56,7 +56,7 @@ git clone https://github.com/qianjiajv/Qpdf.git
 cd Qpdf
 python -m venv .venv
 .venv\Scripts\activate
-pip install pymupdf pywebview
+pip install pymupdf
 ```
 
 Download the [PDF.js release](https://github.com/mozilla/pdf.js/releases) (ES-module build) and extract it to `resources/pdfjs/`, then:
@@ -90,7 +90,6 @@ python app\main.py      # or double-click run_dev.bat
 | Component | Role | License |
 |---|---|---|
 | [PDF.js](https://github.com/mozilla/pdf.js) | Rendering / viewer | Apache-2.0 |
-| [pywebview](https://github.com/r0x0r/pywebview) | Desktop window shell | MIT |
 | [PyMuPDF](https://github.com/pymupdf/PyMuPDF) | Core PDF engine | AGPL-3.0 |
 | [RapidOCR](https://github.com/RapidAI/RapidOCR) | OCR (zh/en) | Apache-2.0 |
 | [pdf2docx](https://github.com/dothinking/pdf2docx) | PDF → Word | MIT |
@@ -136,7 +135,7 @@ License to be announced. Bundled engines keep their own licenses (see table abov
 
 ```
 ┌───────────────────────────────────────────────┐
-│ pywebview 窗口（系统 WebView2 内核）           │
+│ Edge 应用窗口（系统自带 msedge --app）          │
 │   功能区标签 + PDF.js 渲染画布（常驻）          │
 └──────────────────┬────────────────────────────┘
                    │  http://127.0.0.1:<随机端口>
@@ -160,7 +159,7 @@ git clone https://github.com/qianjiajv/Qpdf.git
 cd Qpdf
 python -m venv .venv
 .venv\Scripts\activate
-pip install pymupdf pywebview
+pip install pymupdf
 ```
 
 下载 [PDF.js 发行版](https://github.com/mozilla/pdf.js/releases)（ES module 构建），解压到 `resources/pdfjs/`，然后：
@@ -194,7 +193,6 @@ python app\main.py      # 或双击 run_dev.bat
 | 组件 | 作用 | 许可证 |
 |---|---|---|
 | [PDF.js](https://github.com/mozilla/pdf.js) | 渲染 / 阅读器 | Apache-2.0 |
-| [pywebview](https://github.com/r0x0r/pywebview) | 桌面窗口外壳 | MIT |
 | [PyMuPDF](https://github.com/pymupdf/PyMuPDF) | PDF 核心引擎 | AGPL-3.0 |
 | [RapidOCR](https://github.com/RapidAI/RapidOCR) | OCR（中英文） | Apache-2.0 |
 | [pdf2docx](https://github.com/dothinking/pdf2docx) | PDF 转 Word | MIT |

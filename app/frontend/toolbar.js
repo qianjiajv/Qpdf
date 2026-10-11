@@ -1,8 +1,9 @@
 // ribbon 渲染 + 全局操作 (规格 §4/§7.1)
-// 框架级按钮(打开/另存为等)内置; 功能块按钮由 get_blocks() 动态合并, 未实现的灰态占位
+// 框架级按钮(打开/另存为等)内置; 功能块按钮由 GET /api/blocks 动态合并, 未实现的灰态占位
+// 外壳: 系统 Edge 应用窗口 (msedge --app), 文件对话框走 File System Access API
 import { viewer } from "/frontend/viewer.js";
 
-let api = null;            // pywebview 桥
+let api = null;            // (已废弃: 外壳改为 Edge 应用窗口, 文件对话框走浏览器 API)
 let docBytes = null;       // 当前文档字节 (功能块执行入参)
 const blockHandlers = {};  // block.id -> handler
 
@@ -102,22 +103,54 @@ const STATIC_TABS = [
 // ---------- 框架级动作 ----------
 const ACTIONS = {
   open: async () => {
-    const info = await api.pick_pdf();
-    if (!info) return;
-    const resp = await fetch(info.url);
-    docBytes = new Uint8Array(await resp.arrayBuffer());
-    await viewer.openFromBytes(docBytes, info.name);
+    // 外壳为系统 Edge 应用窗口: 用 File System Access API 拿真实文件
+    let file = null;
+    if (window.showOpenFilePicker) {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [{ description: "PDF 文档", accept: { "application/pdf": [".pdf"] } }],
+          multiple: false,
+        });
+        file = await handle.getFile();
+      } catch (e) { return; } // 用户取消
+    } else {
+      file = await new Promise((resolve) => {
+        const inp = document.createElement("input");
+        inp.type = "file";
+        inp.accept = ".pdf,application/pdf";
+        inp.onchange = () => resolve(inp.files[0] || null);
+        inp.click();
+      });
+      if (!file) return;
+    }
+    docBytes = new Uint8Array(await file.arrayBuffer());
+    await viewer.openFromBytes(docBytes, file.name);
     refreshEnabled();
   },
   saveAs: async () => {
     if (!docBytes) return;
-    let bin = "";
-    const chunk = 0x8000;
-    for (let i = 0; i < docBytes.length; i += chunk) {
-      bin += String.fromCharCode.apply(null, docBytes.subarray(i, i + chunk));
+    if (window.showSaveFilePicker) {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: viewer.state.fileName || "document.pdf",
+          types: [{ description: "PDF 文档", accept: { "application/pdf": [".pdf"] } }],
+        });
+        const w = await handle.createWritable();
+        await w.write(docBytes);
+        await w.close();
+        toast("已保存: " + handle.name);
+      } catch (e) {
+        if (e && e.name !== "AbortError") toast("保存失败: " + (e.message || e));
+      }
+      return;
     }
-    const r = await api.save_as(btoa(bin), viewer.state.fileName);
-    if (r && r.ok) toast("已保存: " + r.name);
+    const blob = new Blob([docBytes], { type: "application/pdf" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = viewer.state.fileName || "document.pdf";
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast("已下载: " + a.download);
   },
   docInfo: () => {
     const s = viewer.state;
@@ -228,7 +261,8 @@ function toast(msg, isErr) {
 const blockList = {};
 async function loadBlocks() {
   try {
-    const blocks = await api.get_blocks();
+    const resp = await fetch("/api/blocks");
+    const blocks = await resp.json();
     for (const b of blocks) {
       (blockList[b.tab] = blockList[b.tab] || []).push(b);
     }
@@ -236,11 +270,9 @@ async function loadBlocks() {
   } catch (e) { /* 框架不因块加载失败而挂 */ }
 }
 
-// ---------- 启动 ----------
+// ---------- 启动 (Edge 应用窗口外壳, 无 pywebview 桥) ----------
 function boot() {
-  api = window.pywebview.api;
   render();
   loadBlocks();
 }
-if (window.pywebview && window.pywebview.api) boot();
-else window.addEventListener("pywebviewready", boot, { once: true });
+boot();
