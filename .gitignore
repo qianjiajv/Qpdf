@@ -10,7 +10,6 @@ data/
 
 # 打包/下载的第三方二进制（体积大，各自有官方来源）
 tools/
-engine/
 *.zip
 *.7z
 
@@ -32,6 +31,3 @@ local/
 Thumbs.db
 desktop.ini
 .DS_Store
-
-# WorkBuddy 工作区内部数据（记忆/状态，不进代码库）
-.workbuddy/
