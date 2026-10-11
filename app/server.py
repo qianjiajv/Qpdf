@@ -4,11 +4,12 @@
 PDF.js 需要通过 http(s) 协议加载 worker 与 wasm，file:// 会被 CORS 拦截，
 所以这里起一个仅监听 127.0.0.1 的轻量服务来提供 PDF.js 静态资源和 PDF 文件内容。
 """
+import json
 import mimetypes
 import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 # 让 .mjs 被识别为 JS 模块
 mimetypes.add_type("text/javascript", ".mjs")
@@ -62,6 +63,30 @@ class StaticHandler(BaseHTTPRequestHandler):
 
         ctype = ctype_override or mimetypes.guess_type(fpath)[0] or "application/octet-stream"
         self._send(200, body, ctype)
+
+    def do_POST(self):  # noqa: N802
+        """功能块执行路由：POST /api/ops/<id>
+
+        body = 原始 PDF 字节，query = 小参数（params），
+        返回新文档字节；块内异常统一回 400 JSON（规格 §7.1 契约）。
+        """
+        parsed = urlparse(self.path)
+        route = unquote(parsed.path)
+        if not route.startswith("/api/ops/"):
+            self._send(404, b"not found", "text/plain; charset=utf-8")
+            return
+        op_id = route[len("/api/ops/"):]
+        params = {k: v[0] for k, v in parse_qs(parsed.query).items()}
+        length = int(self.headers.get("Content-Length") or 0)
+        doc = self.rfile.read(length) if length else b""
+        try:
+            from app.ops import run_op  # 延迟导入, 避免循环依赖
+            out = run_op(op_id, doc, params)
+        except Exception as e:
+            err = json.dumps({"error": str(e)}, ensure_ascii=False).encode("utf-8")
+            self._send(400, err, "application/json; charset=utf-8")
+            return
+        self._send(200, out, "application/pdf")
 
 
 class PdfToolServer:

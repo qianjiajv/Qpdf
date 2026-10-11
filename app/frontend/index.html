@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Qpdf</title>
+<link rel="stylesheet" href="/frontend/style.css">
+</head>
+<body>
+<div id="app">
+  <!-- ribbon: 顶部标签 + 按钮区 (规格 §4) -->
+  <div id="ribbon">
+    <div id="ribbon-tabs"></div>
+    <div id="ribbon-body"></div>
+  </div>
+  <!-- 中央阅读区 -->
+  <div id="viewer-wrap">
+    <div id="viewer-scroll">
+      <div id="empty-hint">按 <b>Ctrl+O</b> 或点击「文件 → 打开」选择 PDF</div>
+      <canvas id="pdf-canvas" hidden></canvas>
+    </div>
+  </div>
+  <!-- 底部状态栏 -->
+  <div id="statusbar">
+    <span id="status-file">未打开文档</span>
+    <div id="status-page">
+      <button class="st-btn" id="pg-prev" title="上一页 (PageUp)">&#9664;</button>
+      <input id="page-input" value="1" inputmode="numeric">
+      <span id="page-total">/ 0</span>
+      <button class="st-btn" id="pg-next" title="下一页 (PageDown)">&#9654;</button>
+    </div>
+    <div id="status-zoom">
+      <button class="st-btn" id="zoom-out" title="缩小 (Ctrl+-)">&minus;</button>
+      <span id="zoom-val">100%</span>
+      <button class="st-btn" id="zoom-in" title="放大 (Ctrl+=)">+</button>
+      <button class="st-btn" id="zoom-fit" title="适应宽度 (Ctrl+0)">&#8596;</button>
+    </div>
+  </div>
+</div>
+<script type="module" src="/frontend/toolbar.js"></script>
+</body>
+</html>
