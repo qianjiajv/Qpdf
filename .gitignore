@@ -1,0 +1,33 @@
+# Python 虚拟环境（不上传，本地重建即可）
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# 用户数据与设置（含最近文件的本地路径，不上传）
+data/
+
+# 打包/下载的第三方二进制（体积大，各自有官方来源）
+tools/
+*.zip
+*.7z
+
+# PDF.js 发行版（体积大，从官方 GitHub Releases 下载解压即可）
+resources/pdfjs/
+
+# PyInstaller 打包产物
+dist/
+build/
+*.spec.bak
+
+# 本地私有区: GitHub 备份环境(token/脚本)与个人诊断产物, 永不上传
+# (实际上传内容由 local\backup.ps1 的白名单决定)
+local/
+
+# 编辑器与系统文件
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
