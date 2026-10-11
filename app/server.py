@@ -47,12 +47,32 @@ class StaticHandler(BaseHTTPRequestHandler):
             self._send(200, body, "application/json; charset=utf-8")
             return
 
+        # 读文件（打开）: GET /api/fs/read?path=<绝对路径> — 由前端原生对话框选出
+        if route == "/api/fs/read":
+            path = (parse_qs(parsed.query).get("path") or [""])[0]
+            if not path or not os.path.isfile(path):
+                self._send(400, b'{"error": "path invalid"}', "application/json; charset=utf-8")
+                return
+            try:
+                with open(path, "rb") as f:
+                    body = f.read()
+            except OSError as e:
+                err = json.dumps({"error": str(e)}, ensure_ascii=False).encode("utf-8")
+                self._send(400, err, "application/json; charset=utf-8")
+                return
+            ctype = mimetypes.guess_type(path)[0] or "application/octet-stream"
+            self._send(200, body, ctype)
+            return
+
         root = self.server.routes.get(route)
         if root is None:
             self._send(404, b"not found", "text/plain; charset=utf-8")
             return
 
-        # root 为元组 (文件路径, 内容类型覆盖)
+        # root 形态: 路径 | (路径, 类型覆盖) | ("__bytes__", 数据, 类型)
+        if isinstance(root, tuple) and root[0] == "__bytes__":
+            self._send(200, root[1], root[2])
+            return
         if isinstance(root, tuple):
             fpath, ctype_override = root
         else:
@@ -80,6 +100,25 @@ class StaticHandler(BaseHTTPRequestHandler):
         """
         parsed = urlparse(self.path)
         route = unquote(parsed.path)
+
+        # 写文件（另存为）: POST /api/fs/write?path=<绝对路径>, body=原始字节
+        if route == "/api/fs/write":
+            path = (parse_qs(parsed.query).get("path") or [""])[0]
+            if not path:
+                self._send(400, b'{"error": "path invalid"}', "application/json; charset=utf-8")
+                return
+            length = int(self.headers.get("Content-Length") or 0)
+            data = self.rfile.read(length) if length else b""
+            try:
+                with open(path, "wb") as f:
+                    f.write(data)
+            except OSError as e:
+                err = json.dumps({"error": str(e)}, ensure_ascii=False).encode("utf-8")
+                self._send(400, err, "application/json; charset=utf-8")
+                return
+            self._send(200, b'{"ok": true}', "application/json; charset=utf-8")
+            return
+
         if not route.startswith("/api/ops/"):
             self._send(404, b"not found", "text/plain; charset=utf-8")
             return
@@ -112,6 +151,10 @@ class PdfToolServer:
 
     def add_file(self, route: str, fpath: str, ctype: str = None):
         self._httpd.routes[route] = (fpath, ctype) if ctype else fpath
+
+    def add_bytes(self, route: str, data: bytes, ctype: str):
+        """注册一段内存内容（如 Qt 资源里的 qwebchannel.js）。"""
+        self._httpd.routes[route] = ("__bytes__", data, ctype)
 
     def add_tree(self, route_prefix: str, dir_path: str):
         """把一个目录挂载到某个前缀下（递归注册）。"""

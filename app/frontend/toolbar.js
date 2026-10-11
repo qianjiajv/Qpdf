@@ -1,11 +1,30 @@
 // ribbon 渲染 + 全局操作 (规格 §4/§7.1)
 // 框架级按钮(打开/另存为等)内置; 功能块按钮由 GET /api/blocks 动态合并, 未实现的灰态占位
-// 外壳: 系统 Edge 应用窗口 (msedge --app), 文件对话框走 File System Access API
+// 外壳: PySide6(QtWebEngine) 内嵌窗口; 文件对话框优先走 QWebChannel 桥(原生对话框),
+// 普通浏览器开发模式自动降级 File System Access API / input[type=file]
 import { viewer } from "/frontend/viewer.js";
 
-let api = null;            // (已废弃: 外壳改为 Edge 应用窗口, 文件对话框走浏览器 API)
 let docBytes = null;       // 当前文档字节 (功能块执行入参)
 const blockHandlers = {};  // block.id -> handler
+
+// ---------- Qt 壳桥 (QWebChannel): pickOpenPath/pickSavePath → 本地 HTTP 读写 ----------
+let qtBridge = null;
+function getQtBridge() {
+  if (qtBridge) return Promise.resolve(qtBridge);
+  return new Promise((resolve) => {
+    if (!(window.qt && window.qt.webChannelTransport)) return resolve(null); // 浏览器开发模式
+    const s = document.createElement("script");
+    s.src = "/frontend/qwebchannel.js";
+    s.onload = () => {
+      new QWebChannel(window.qt.webChannelTransport, (ch) => {
+        qtBridge = ch.objects.bridge || null;
+        resolve(qtBridge);
+      });
+    };
+    s.onerror = () => resolve(null);
+    document.head.appendChild(s);
+  });
+}
 
 // ---------- 各标签的静态按钮 ----------
 // B0: 文件/首页/视图可用; 其余标签仅占位(待对应功能块点亮)
@@ -103,7 +122,24 @@ const STATIC_TABS = [
 // ---------- 框架级动作 ----------
 const ACTIONS = {
   open: async () => {
-    // 外壳为系统 Edge 应用窗口: 用 File System Access API 拿真实文件
+    // Qt 壳: 原生对话框拿真实路径, 字节走本地 HTTP /api/fs/read
+    const bridge = await getQtBridge();
+    if (bridge) {
+      const path = await bridge.pickOpenPath();
+      if (!path) return; // 用户取消
+      try {
+        const resp = await fetch("/api/fs/read?path=" + encodeURIComponent(path));
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ error: "HTTP " + resp.status }));
+          throw new Error(err.error || "读取失败");
+        }
+        docBytes = new Uint8Array(await resp.arrayBuffer());
+        await viewer.openFromBytes(docBytes, path.split(/[\\/]/).pop());
+        refreshEnabled();
+      } catch (e) { toast("打开失败: " + (e.message || e), true); }
+      return;
+    }
+    // 浏览器开发模式: File System Access API / input[type=file] 兜底
     let file = null;
     if (window.showOpenFilePicker) {
       try {
@@ -129,6 +165,22 @@ const ACTIONS = {
   },
   saveAs: async () => {
     if (!docBytes) return;
+    // Qt 壳: 原生对话框选保存路径, 字节走本地 HTTP /api/fs/write
+    const bridge = await getQtBridge();
+    if (bridge) {
+      const path = await bridge.pickSavePath(viewer.state.fileName || "document.pdf");
+      if (!path) return; // 用户取消
+      try {
+        const resp = await fetch("/api/fs/write?path=" + encodeURIComponent(path), { method: "POST", body: docBytes });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ error: "HTTP " + resp.status }));
+          throw new Error(err.error || "写入失败");
+        }
+        toast("已保存: " + path.split(/[\\/]/).pop());
+      } catch (e) { toast("保存失败: " + (e.message || e), true); }
+      return;
+    }
+    // 浏览器开发模式兜底
     if (window.showSaveFilePicker) {
       try {
         const handle = await window.showSaveFilePicker({
@@ -270,9 +322,10 @@ async function loadBlocks() {
   } catch (e) { /* 框架不因块加载失败而挂 */ }
 }
 
-// ---------- 启动 (Edge 应用窗口外壳, 无 pywebview 桥) ----------
+// ---------- 启动 (Qt 壳走 QWebChannel 桥, 浏览器开发模式自动降级) ----------
 function boot() {
   render();
   loadBlocks();
+  getQtBridge(); // 预热桥连接 (失败不阻塞 UI)
 }
 boot();
